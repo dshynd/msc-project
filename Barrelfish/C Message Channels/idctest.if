@@ -1,0 +1,5 @@
+interface idctest "Test message interface" {
+	  message ready(int id);
+	  message data(uint64 loops, uint8 data[arraysize]);
+	  message result(int id, int r);
+};

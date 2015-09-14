@@ -1,0 +1,7 @@
+[ build library { target = "insense",
+  		  cFiles = [ 
+			"runtime_main.c"
+		],
+		addLibraries = [ "posixcompat"]
+                }
+]

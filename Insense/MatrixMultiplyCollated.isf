@@ -1,0 +1,129 @@
+/* 
+ * Parallel Matrix Multiplaction program for square matrices
+ * 
+ * The MatrixMultiplyParallel is the "main" component in this program which
+ * instantiates a single Collatorinator component and many Worker components,
+ * one Worker component for each element of the result matrix. Matrices are 
+ * represented using 2-D arrays. The main component sends out the two input 
+ * matrices to each worker instance. Each worker component instance computes
+ * the matrix multiplication for its cell and sends the result to the Collatorinator. 
+ * Finally, the Collatorinator collates results it receives from Workers into the result
+ * matrix.
+ * 
+ * @author Daniel Hynd (with some help from Jon Lewis)
+ * 
+ */
+
+type WorkData is struct(integer id ; integer[][] m1 ; integer[][] m2) 
+type WorkResult is struct(integer id ; integer value) 
+
+type IMatrixMultiplyCollated is interface(out WorkData output)
+type IWorker is interface(in WorkData input ; out WorkResult output)
+type ICollator is interface(in WorkResult input)
+
+
+proc printMatrix(integer[][] m){
+	printString("\n")
+	for i = 0 .. m.length-1 do {
+		for j = 0 .. m[0].length-1 do {
+			printInt(m[i][j])
+			printString(" ")
+		}
+		printString("\n")
+	}
+}
+
+proc initMatrix(integer[][] m){
+	count = 0
+	for i = 0 .. m.length-1 do {
+		for j = 0 .. m[0].length-1 do {
+			m[i][j] := count
+			count := count + 1
+		}
+	}
+}
+
+
+component Worker presents IWorker{
+
+    proc doMult(WorkData data) : integer {
+    	row = data.id / data.m1.length
+    	col = data.id % data.m1.length
+	    res = 0
+	    for i = 0 .. data.m1.length-1 do {
+	    	res := res + data.m1[row][i] * data.m2[i][col]
+	    }
+	    return res
+    }
+
+
+	constructor(){
+	}
+	
+	behaviour{
+		receive data from input
+		matrixResult = doMult(data)
+		result = new WorkResult(data.id, matrixResult)		
+		send result on output
+		stop
+	}
+} 
+
+component Collator presents ICollator{
+
+	m3 = new integer[4][4] of 0
+    count = 0
+
+    proc processResult(WorkResult result) {
+		row = result.id / m3.length
+		col = result.id % m3.length
+   		m3[row][col] := result.value
+    }
+
+	constructor(){
+	}
+	
+	behaviour{
+		receive result from input
+		processResult(result)
+		count := count + 1
+		if count == m3.length * m3.length then {
+		   stop
+		}
+	}
+}
+
+
+component MatrixMultiplyCollated presents IMatrixMultiplyCollated {
+	
+	m1 = new integer[4][4] of 0
+	m2 = new integer[4][4] of 0
+	
+	collator = new Collator()
+	
+	proc sendDataToWorker(integer id){
+		worker = new Worker()
+	    data = new WorkData(id, m1, m2)
+	    connect output to worker.input
+	    connect worker.output to collator.input
+	    send data on output
+	    disconnect output
+	}
+	
+	constructor() {
+	}
+	
+	behaviour {
+		initMatrix(m1)
+		initMatrix(m2)
+		for i = 0 .. (m1.length * m1.length - 1) do {
+		    sendDataToWorker(i)
+		}
+		stop
+	}
+}
+
+
+// Create main MatrixMultiplyParallel component which creates 
+// all the others and wires them up
+mmc = new MatrixMultiplyCollated()

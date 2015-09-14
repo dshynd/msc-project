@@ -1,0 +1,6 @@
+[ build application { target = "Averager-MP",
+                      cFiles = [ "Averager_IDC.c" ],
+		      flounderBindings = [ "idctest" ],
+			addCFlags = [ "-O0" ]
+                    }
+]

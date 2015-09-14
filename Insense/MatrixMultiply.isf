@@ -1,0 +1,80 @@
+type WorkData is struct(integer id ; integer[][] m1 ; integer[][] m2; integer[][] m3) 
+
+type IMatrixMultiply is interface(out WorkData output)
+type IWorker is interface(in WorkData input)
+
+proc printMatrix(integer[][] m){
+	printString("\n")
+	for i = 0 .. m.length-1 do {
+		for j = 0 .. m[0].length-1 do {
+			printInt(m[i][j])
+			printString(" ")
+		}
+		printString("\n")
+	}
+}
+
+proc initMatrix(integer[][] m){
+	count = 0
+	for i = 0 .. m.length-1 do {
+		for j = 0 .. m[0].length-1 do {
+			m[i][j] := count
+			count := count + 1
+		}
+	}
+}
+
+
+component Worker presents IWorker{
+
+    proc doMult(WorkData data){
+    	row = data.id / data.m1.length
+    	col = data.id % data.m1.length
+
+	    for i = 0 .. data.m1.length-1 do {
+	    	data.m3[row][col] := data.m3[row][col] + (data.m1[row][i] * data.m2[i][col])
+	    }
+    }
+
+
+	constructor(){
+	}
+	
+	behaviour{
+		receive data from input
+		doMult(data)
+		stop
+	}
+} 
+
+component MatrixMultiply presents IMatrixMultiply {
+	
+	m1 = new integer[100][100] of 0
+	m2 = new integer[100][100] of 0
+	m3 = new integer[100][100] of 0
+		
+	proc sendDataToWorker(integer id){
+		worker = new Worker()
+	    data = new WorkData(id, m1, m2, m3)
+	    connect output to worker.input
+	    send data on output
+	    disconnect output
+	}
+	
+	constructor() {
+	}
+	
+	behaviour {
+		initMatrix(m1)
+		initMatrix(m2)
+		for i = 0 .. (m1.length * m1.length - 1) do {
+		    sendDataToWorker(i)
+		}
+		stop
+	}
+}
+
+
+// Create main MatrixMultiplyParallel component which creates 
+// all the others and wires them up
+mm = new MatrixMultiply()

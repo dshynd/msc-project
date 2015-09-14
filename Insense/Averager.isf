@@ -1,0 +1,85 @@
+type WorkData is struct(integer id; real[] array; real left; real right) 
+
+type IAverager is interface(out WorkData output)
+type IWorker is interface(in WorkData input)
+
+proc printArray(real[] a){
+	printString("\n[")
+	
+	for i = 0 .. a.length-1 do {
+		printReal(a[i])
+		printString(" ")
+	}
+	
+	printString("]\n")
+}
+
+proc initArray(real[] a){
+	for i = 0 .. a.length-1 do {
+		a[i] := randReal()
+	}
+}
+
+component Worker presents IWorker{
+
+	loops = 1
+
+	proc doAveraging(WorkData data){
+    	id = data.id
+    
+    	newValue = 0.0
+	    for i = 0 .. loops-1 do {
+			if id == 0 then{
+				newValue := (data.array[0] + data.right) / 2;
+			}
+			else{
+				if id == data.array.length-1 then{
+					newValue := (data.left + data.array[id]) / 2;	
+				}
+				else{
+					newValue := (data.left + data.array[id] + data.right) / 3; 
+				}
+			}
+			
+			data.array[id] := newValue;
+	    } 
+    }
+
+
+	constructor(){
+	}
+	
+	behaviour{
+		receive data from input
+		doAveraging(data)
+		stop
+	}
+} 
+
+component Averager presents IAverager {
+	
+	a = new real[4] of 0.0
+	
+	proc sendDataToWorker(integer id){
+		worker = new Worker()
+	    data = new WorkData(id, a, 0.0, 0.0)
+	    if id > 0 then{ data.left := a[id-1] }
+		if id < a.length - 1 then{ data.right := a[id+1] }
+	    connect output to worker.input
+	    send data on output
+	    disconnect output
+	}
+	
+	constructor() {
+	}
+	
+	behaviour {
+		initArray(a)
+		for i = 0 .. a.length-1 do {
+		    sendDataToWorker(i)
+		}
+		stop
+	}
+}
+
+av = new Averager()
